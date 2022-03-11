@@ -1,0 +1,99 @@
+import pyvisa
+import time
+
+#시간기록
+start_time = time.time()
+filename = time.time()
+
+#연결된 장비 설정 configuration
+rm = pyvisa.ResourceManager()
+rm.list_resources()
+('GPIB0::13::INSTR')
+('GPIB0::5::INSTR')
+sensor = rm.open_resource('GPIB0::13::INSTR')
+SG = rm.open_resource('GPIB0::5::INSTR')
+dut = rm.open_resource('TCPIP0::169.254.41.137::9001::SOCKET')
+dut.write_termination = '\n'
+dut.read_termination = '\n'
+
+print(sensor.query("*IDN?"))
+print(sensor.query("SNTYPE A"))
+print(SG.query("*IDN?"))
+print(dut.query('*IDN?'))
+
+#DUT, SG preset,
+dut.write('*RST')
+SG.write('RST')
+time.sleep(3)
+#SG output off, PM Ch1 set up, DUT RBW,VBW Setting
+SG.write('RF0')
+sensor.write('CHMODE 1,CW')
+dut.write(':SENSe:BANDwidth:RESolution 1 KHZ')
+dut.write(':SENSe:BANDwidth:VIDeo 10 HZ')
+time.sleep(1)
+
+#파일생성
+outfile = open(dut.query('*IDN?')[-18:-12] + ".csv", 'w')
+
+#파일에 cal-kit 정보 입력
+outfile.write("Power meter" + "," + sensor.query("*IDN?"))
+outfile.write("Power sensor" + "," + sensor.query("SNTYPE A"))
+outfile.write("Signal generator" + "," + SG.query("*IDN?"))
+
+#측정결과 입력
+outfile.write("Frequency" + "," + "Reference level" + "," + "sensor" + "," + "DUT")
+time.sleep(1)
+dut.write(':SENSe:FREQuency:CENTer 50 MHZ')
+time.sleep(2)
+dut.write(':SENSe:FREQuency:SPAN 10 KHZ')
+time.sleep(1)
+SG.write('CF1 50 MH')
+SG.write('L1 4 dm')
+sensor.write('SNCFRQ A,50MHZ')
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write("0.05" + "," + "0" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+SG.write('L1 0 dm')
+SG.write('RF1')
+time.sleep(1)
+outfile.write("0.05," + "-4," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?'))
+outfile.write("0.05," + "-3,")
+outfile.write("0.05," + "-2,")
+outfile.write("0.05," + "-1,")
+
+
+
+#결과파일 닫기
+outfile.close()
+
+
+#sensor.write('CHMODE 1,CW')
+#time.sleep(3)
+
+
+#SG.write('CF1 1 GH')
+#SG.write('L1 -35 dm')
+
+#time.sleep(3)
+#print(sensor.query("CWO 1"))
+#time.sleep(1)
+
+#SG.write('CF1 1 GH')
+#SG.write('L1 -25 dm')
+
+#time.sleep(3)
+#print(sensor.query("CWO 1"))
+
+
+
+
+
+
+# inst.write('SNCAL A')
+# sensor.write('SNZERO A')
+end_time = time.time()
+print("The Job Took " + str(end_time - start_time) + " seconds.")
+
