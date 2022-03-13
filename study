@@ -1,0 +1,6 @@
+
+import sys
+A = sys.argv[1]
+# sys.argv는 외부로부터 이름을 받는다. git bash 상에서 python 이후 순서대로 0 1 2 3의 이름을 가져온다.
+# Ex) python abc.py mer.csv 일때 sys.argv[0]은 abc.py, argv[1]은 mer.csv
+
