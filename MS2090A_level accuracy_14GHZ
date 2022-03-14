@@ -42,6 +42,7 @@ outfile = open(dut.query('*IDN?')[16:23] + "_level accuracy_14G" + ".csv", 'w')
 outfile.write("Power meter" + "," + sensor.query("*IDN?") + "\n")
 outfile.write("Power sensor" + "," + sensor.query("SNTYPE A") + "\n")
 outfile.write("Signal generator" + "," + SG.query("*IDN?") + "\n")
+outfile.write("DUT" + "," + dut.query('*IDN?') + "\n")
 
 #측정결과 입력
 outfile.write("Frequency" + "," + "Reference level" + "," + "DUT Ref" + "," + "DUT Atten" + "," + "sensor" + "," + "DUT" + "\n")
@@ -309,11 +310,9 @@ outfile.close()
 
 
 
-
-
-
 # inst.write('SNCAL A')
 # sensor.write('SNZERO A')
 end_time = time.time()
 print("The Job Took " + str(end_time - start_time) + " seconds.")
+
 
