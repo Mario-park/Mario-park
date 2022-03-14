@@ -1,0 +1,172 @@
+import pyvisa
+import time
+
+#시간기록
+start_time = time.time()
+filename = time.time()
+
+#연결된 장비 설정 configuration
+rm = pyvisa.ResourceManager()
+rm.list_resources()
+('GPIB0::13::INSTR')
+('GPIB0::5::INSTR')
+sensor = rm.open_resource('GPIB0::13::INSTR')
+SG = rm.open_resource('GPIB0::5::INSTR')
+dut = rm.open_resource('TCPIP0::169.254.41.137::9001::SOCKET')
+dut.write_termination = '\n'
+dut.read_termination = '\n'
+sensor.write_termination = '\n'
+sensor.read_termination = '\n'
+SG.write_termination = '\n'
+SG.read_termination = '\n'
+
+print(sensor.query("*IDN?"))
+print(sensor.query("SNTYPE A"))
+print(SG.query("*IDN?"))
+print(dut.query('*IDN?'))
+
+#DUT, SG preset,
+dut.write('*RST')
+SG.write('RST')
+time.sleep(3)
+#SG output off, PM Ch1 set up, DUT RBW,VBW Setting
+SG.write('RF0')
+SG.write('L1 -14 dm')
+sensor.write('CHMODE 1,CW')
+dut.write(':SENSe:BANDwidth:RESolution 1 KHZ')
+dut.write(':SENSe:BANDwidth:VIDeo 10 HZ')
+dut.write(':SENSe:FREQuency:SPAN 10 KHZ')
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -40')
+dut.write(':POWer:RF:ATTenuation 0')
+dut.write(':POWer:RF:GAIN:STATe 1')
+time.sleep(1)
+
+#파일생성
+outfile = open(dut.query('*IDN?')[16:23] + "_preamp accuracy_14G" + ".csv", 'w')
+#파일에 cal-kit 정보 입력
+outfile.write("Power meter" + "," + sensor.query("*IDN?") + "\n")
+outfile.write("Power sensor" + "," + sensor.query("SNTYPE A") + "\n")
+outfile.write("Signal generator" + "," + SG.query("*IDN?") + "\n")
+outfile.write("DUT Reference level" + "," + dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + "\n")
+outfile.write("DUT Attenuator" + "," + dut.query(':POWer:RF:ATTenuation?') + "\n")
+outfile.write("DUT Pre amp" + "," + dut.query(':POWer:RF:GAIN:STATe?') + "\n")
+
+#측정결과 입력
+outfile.write("Frequency" + "," + "Reference level" + "," + "sensor" + "," + "DUT" + "\n")
+
+
+
+# for 10 kHz
+Freq = "0.00001"
+time.sleep(1)
+SG.write('CF1 0.00001 GH')
+sensor.write('SNCFRQ A,0.0001GHZ')
+dut.write(':SENSe:FREQuency:CENTer 0.00001 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+# for 10 MHz
+Freq = "0.01"
+time.sleep(1)
+SG.write('CF1 0.01 GH')
+sensor.write('SNCFRQ A,0.01GHZ')
+dut.write(':SENSe:FREQuency:CENTer 0.01 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+# for 150 MHz
+Freq = "0.15"
+time.sleep(1)
+SG.write('CF1 0.15 GH')
+sensor.write('SNCFRQ A,0.15GHZ')
+dut.write(':SENSe:FREQuency:CENTer 0.15 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+# for 1 GHz
+Freq = "1"
+time.sleep(1)
+SG.write('CF1 1 GH')
+sensor.write('SNCFRQ A,1GHZ')
+dut.write(':SENSe:FREQuency:CENTer 1 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+# for 3 GHz
+Freq = "3"
+time.sleep(1)
+SG.write('CF1 3 GH')
+sensor.write('SNCFRQ A,3GHZ')
+dut.write(':SENSe:FREQuency:CENTer 3 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+# for 5 GHz
+Freq = "5"
+time.sleep(1)
+SG.write('CF1 5 GH')
+sensor.write('SNCFRQ A,5GHZ')
+dut.write(':SENSe:FREQuency:CENTer 5 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+# for 8.9 GHz
+Freq = "8.9"
+time.sleep(1)
+SG.write('CF1 8.9 GH')
+sensor.write('SNCFRQ A,8.9GHZ')
+dut.write(':SENSe:FREQuency:CENTer 8.9 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+# for 13 GHz
+Freq = "13"
+time.sleep(1)
+SG.write('CF1 13 GH')
+sensor.write('SNCFRQ A,13GHZ')
+dut.write(':SENSe:FREQuency:CENTer 13 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+SG.write('RF0')
+dut.write(':POWer:RF:GAIN:STATe 0')
+dut.write(':POWer:RF:ATTenuation 30')
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+
+#결과파일 닫기
+outfile.close()
+
+end_time = time.time()
+print("The Job Took " + str(end_time - start_time) + " seconds.")
