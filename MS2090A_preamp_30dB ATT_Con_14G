@@ -1,0 +1,133 @@
+import pyvisa
+import time
+
+#시간기록
+start_time = time.time()
+filename = time.time()
+
+#연결된 장비 설정 configuration
+rm = pyvisa.ResourceManager()
+rm.list_resources()
+('GPIB0::13::INSTR')
+('GPIB0::5::INSTR')
+sensor = rm.open_resource('GPIB0::13::INSTR')
+SG = rm.open_resource('GPIB0::5::INSTR')
+dut = rm.open_resource('TCPIP0::169.254.41.137::9001::SOCKET')
+dut.write_termination = '\n'
+dut.read_termination = '\n'
+sensor.write_termination = '\n'
+sensor.read_termination = '\n'
+SG.write_termination = '\n'
+SG.read_termination = '\n'
+
+print(sensor.query("*IDN?"))
+print(sensor.query("SNTYPE A"))
+print(SG.query("*IDN?"))
+print(dut.query('*IDN?'))
+
+#SG preset,
+
+SG.write('RST')
+time.sleep(3)
+#SG output off, PM Ch1 set up,
+SG.write('RF0')
+SG.write('L1 0 dm')
+sensor.write('CHMODE 1,CW')
+time.sleep(1)
+
+#기존파일열기
+outfile = open(dut.query('*IDN?')[16:23] + "_preamp accuracy_14G" + ".csv", "a")
+#파일에 cal-kit 정보 입력
+outfile.write("\n" + "30dB Attenuator accuracy" + "\n")
+outfile.write("Power meter" + "," + sensor.query("*IDN?") + "\n")
+outfile.write("Power sensor" + "," + sensor.query("SNTYPE A") + "\n")
+outfile.write("Signal generator" + "," + SG.query("*IDN?") + "\n")
+
+
+#측정결과 입력
+outfile.write("Frequency" + "," + "Reference level" + "," + "sensor" + "\n")
+
+
+# for 10 kHz
+Freq = "0.00001"
+time.sleep(1)
+SG.write('CF1 0.00001 GH')
+sensor.write('SNCFRQ A,0.0001GHZ')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(60)
+outfile.write(str(Freq) + "," + "0" + "," + sensor.query("CWO 1") + "\n")
+
+# for 10 MHz
+Freq = "0.01"
+time.sleep(1)
+SG.write('CF1 0.01 GH')
+sensor.write('SNCFRQ A,0.01GHZ')
+dut.write(':SENSe:FREQuency:CENTer 0.01 GHZ')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(10)
+outfile.write(str(Freq) + "," + "0" + "," + sensor.query("CWO 1") + "\n")
+
+
+# for 150 MHz
+Freq = "0.15"
+time.sleep(1)
+SG.write('CF1 0.15 GH')
+sensor.write('SNCFRQ A,0.15GHZ')
+SG.write('RF1')
+time.sleep(10)
+outfile.write(str(Freq) + "," + "0" + "," + sensor.query("CWO 1") + "\n")
+
+# for 1 GHz
+Freq = "1"
+time.sleep(1)
+SG.write('CF1 1 GH')
+sensor.write('SNCFRQ A,1GHZ')
+SG.write('RF1')
+time.sleep(10)
+outfile.write(str(Freq) + "," + "0" + "," + sensor.query("CWO 1") + "\n")
+
+# for 3 GHz
+Freq = "3"
+time.sleep(1)
+SG.write('CF1 3 GH')
+sensor.write('SNCFRQ A,3GHZ')
+SG.write('RF1')
+time.sleep(10)
+outfile.write(str(Freq) + "," + "0" + "," + sensor.query("CWO 1") + "\n")
+
+# for 5 GHz
+Freq = "5"
+time.sleep(1)
+SG.write('CF1 5 GH')
+sensor.write('SNCFRQ A,5GHZ')
+SG.write('RF1')
+time.sleep(10)
+outfile.write(str(Freq) + "," + "0" + "," + sensor.query("CWO 1") + "\n")
+
+# for 8.9 GHz
+Freq = "8.9"
+time.sleep(1)
+SG.write('CF1 8.9 GH')
+sensor.write('SNCFRQ A,8.9GHZ')
+SG.write('RF1')
+time.sleep(10)
+outfile.write(str(Freq) + "," + "0" + "," + sensor.query("CWO 1") + "\n")
+
+# for 13 GHz
+Freq = "13"
+time.sleep(1)
+SG.write('CF1 13 GH')
+sensor.write('SNCFRQ A,13GHZ')
+SG.write('RF1')
+time.sleep(10)
+outfile.write(str(Freq) + "," + "0" + "," + sensor.query("CWO 1") + "\n")
+
+SG.write('RF0')
+
+#결과파일 닫기
+outfile.close()
+
+end_time = time.time()
+print("The Job Took " + str(end_time - start_time) + " seconds.")
