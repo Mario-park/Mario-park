@@ -37,7 +37,7 @@ dut.write(':SENSe:BANDwidth:VIDeo 10 HZ')
 time.sleep(1)
 
 #파일생성
-outfile = open(dut.query('*IDN?')[16:23] + ".csv", 'w')
+outfile = open(dut.query('*IDN?')[16:23] + "_level accuracy_14G" + ".csv", 'w')
 #파일에 cal-kit 정보 입력
 outfile.write("Power meter" + "," + sensor.query("*IDN?") + "\n")
 outfile.write("Power sensor" + "," + sensor.query("SNTYPE A") + "\n")
