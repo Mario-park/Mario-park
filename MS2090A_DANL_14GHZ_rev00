@@ -1,0 +1,155 @@
+import pyvisa
+import time
+import os
+import sys
+from openpyxl import load_workbook
+workbook = load_workbook("./verification.xlsx")
+sheet1 = workbook["Sheet1"]
+sheet2 = workbook["Sheet2"]
+sheet3 = workbook["Sheet3"]
+sheet4 = workbook["Sheet4"]
+
+#시간기록
+start_time = time.time()
+filename = time.time()
+
+#연결된 장비 설정 configuration
+rm = pyvisa.ResourceManager()
+rm.list_resources()
+dut = rm.open_resource('TCPIP0::192.168.20.99::9001::SOCKET')
+dut.write_termination = '\n'
+dut.read_termination = '\n'
+print(dut.query('*IDN?'))
+
+#DUT, SG preset,
+dut.write('*RST')
+time.sleep(2)
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -20')
+dut.write(':POWer:RF:ATTenuation 0')
+dut.write(':POWer:RF:GAIN:STATe 0')  #Preamp off
+dut.write(':DISPlay:POINtcount 551')
+dut.write(':SENSe:DET:FUNC RMS')
+dut.write(':SENSe:BANDwidth:RESolution 1 MHZ')
+dut.write(':SENSe:BANDwidth:VIDeo 1 kHZ')
+dut.write(':SENSe:BANDwidth:VID:TYPE LOG')
+dut.write(':INIT:CONT 0')
+
+#파일생성
+folder = str(dut.query('*IDN?')[16:23])
+fol = folder + "/"
+if folder not in os.listdir():
+    os.mkdir(folder)
+
+#파일에 cal-kit 정보 입력
+
+sheet4["A1"] = ("DUT : " + dut.query('*IDN?'))
+
+#1
+dut.write(':SENSe:FREQ:STAR 10 MHZ')
+dut.write(':SENSe:FREQ:STOP 4 GHZ')
+time.sleep(1)
+dut.write(':INIT:IMM')
+time.sleep(2)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet4["B4"] = float(dut.query(':SENSe:FREQ:STAR?'))
+sheet4["C4"] = float(dut.query(':SENSe:FREQ:STOP?'))
+sheet4["D4"] = float(dut.query(':SENSe:BAND:RES?'))
+sheet4["E4"] = float(dut.query(':SENSe:BAND:VID?'))
+sheet4["F4"] = float(dut.query(':CALC:MARK:Y?'))-60
+sheet4["J4"] = float(dut.query(':CALC:MARK:X?'))
+#2
+dut.write(':SENSe:FREQ:STAR 3.999 GHZ')
+dut.write(':SENSe:FREQ:STOP 9 GHZ')
+time.sleep(1)
+dut.write(':INIT:IMM')
+time.sleep(2)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet4["B5"] = float(dut.query(':SENSe:FREQ:STAR?'))
+sheet4["C5"] = float(dut.query(':SENSe:FREQ:STOP?'))
+sheet4["D5"] = float(dut.query(':SENSe:BAND:RES?'))
+sheet4["E5"] = float(dut.query(':SENSe:BAND:VID?'))
+sheet4["F5"] = float(dut.query(':CALC:MARK:Y?'))-60
+sheet4["J5"] = float(dut.query(':CALC:MARK:X?'))
+
+#3
+dut.write(':SENSe:FREQ:STAR 8.999 GHZ')
+dut.write(':SENSe:FREQ:STOP 14 GHZ')
+time.sleep(1)
+dut.write(':INIT:IMM')
+time.sleep(2)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet4["B6"] = float(dut.query(':SENSe:FREQ:STAR?'))
+sheet4["C6"] = float(dut.query(':SENSe:FREQ:STOP?'))
+sheet4["D6"] = float(dut.query(':SENSe:BAND:RES?'))
+sheet4["E6"] = float(dut.query(':SENSe:BAND:VID?'))
+sheet4["F6"] = float(dut.query(':CALC:MARK:Y?'))-60
+sheet4["J6"] = float(dut.query(':CALC:MARK:X?'))
+
+#Preamp on
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -50')
+dut.write(':POWer:RF:ATTenuation 0')
+dut.write(':POWer:RF:GAIN:STATe 1')  #Preamp off
+dut.write(':DISPlay:POINtcount 551')
+dut.write(':SENSe:DET:FUNC RMS')
+dut.write(':SENSe:BANDwidth:RESolution 1 MHZ')
+dut.write(':SENSe:BANDwidth:VIDeo 1 kHZ')
+dut.write(':SENSe:BANDwidth:VID:TYPE LOG')
+dut.write(':INIT:CONT 0')
+
+#1
+dut.write(':SENSe:FREQ:STAR 10 MHZ')
+dut.write(':SENSe:FREQ:STOP 4 GHZ')
+time.sleep(1)
+dut.write(':INIT:IMM')
+time.sleep(2)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet4["B15"] = float(dut.query(':SENSe:FREQ:STAR?'))
+sheet4["C15"] = float(dut.query(':SENSe:FREQ:STOP?'))
+sheet4["D15"] = float(dut.query(':SENSe:BAND:RES?'))
+sheet4["E15"] = float(dut.query(':SENSe:BAND:VID?'))
+sheet4["F15"] = float(dut.query(':CALC:MARK:Y?'))-60
+sheet4["J15"] = float(dut.query(':CALC:MARK:X?'))
+
+#2
+dut.write(':SENSe:FREQ:STAR 3.999 GHZ')
+dut.write(':SENSe:FREQ:STOP 9 GHZ')
+time.sleep(1)
+dut.write(':INIT:IMM')
+time.sleep(2)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet4["B16"] = float(dut.query(':SENSe:FREQ:STAR?'))
+sheet4["C16"] = float(dut.query(':SENSe:FREQ:STOP?'))
+sheet4["D16"] = float(dut.query(':SENSe:BAND:RES?'))
+sheet4["E16"] = float(dut.query(':SENSe:BAND:VID?'))
+sheet4["F16"] = float(dut.query(':CALC:MARK:Y?'))-60
+sheet4["J16"] = float(dut.query(':CALC:MARK:X?'))
+
+#3
+dut.write(':SENSe:FREQ:STAR 8.999 GHZ')
+dut.write(':SENSe:FREQ:STOP 14 GHZ')
+time.sleep(1)
+dut.write(':INIT:IMM')
+time.sleep(2)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet4["B17"] = float(dut.query(':SENSe:FREQ:STAR?'))
+sheet4["C17"] = float(dut.query(':SENSe:FREQ:STOP?'))
+sheet4["D17"] = float(dut.query(':SENSe:BAND:RES?'))
+sheet4["E17"] = float(dut.query(':SENSe:BAND:VID?'))
+sheet4["F17"] = float(dut.query(':CALC:MARK:Y?'))-60
+sheet4["J17"] = float(dut.query(':CALC:MARK:X?'))
+
+dut.write('*RST')
+
+workbook.remove(workbook['Sheet1'])
+workbook.remove(workbook['Sheet2'])
+workbook.remove(workbook['Sheet3'])
+workbook.save(fol + dut.query('*IDN?')[16:23] + "_DANL_14_" + time.strftime('%Y%m%d_%H%M', time.localtime()) + ".xlsx")
+
+end_time = time.time()
+print("The Job Took " + str(end_time - start_time) + " seconds.")
