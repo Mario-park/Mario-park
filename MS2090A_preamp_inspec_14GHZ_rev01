@@ -1,0 +1,82 @@
+
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+# for 1 GHz
+Freq = "1"
+time.sleep(1)
+SG.write('CF1 1 GH')
+sensor.write('SNCFRQ A,1GHZ')
+dut.write(':SENSe:FREQuency:CENTer 1 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+# for 3 GHz
+Freq = "3"
+time.sleep(1)
+SG.write('CF1 3 GH')
+sensor.write('SNCFRQ A,3GHZ')
+dut.write(':SENSe:FREQuency:CENTer 3 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+# for 5 GHz
+Freq = "5"
+time.sleep(1)
+SG.write('CF1 5 GH')
+sensor.write('SNCFRQ A,5GHZ')
+dut.write(':SENSe:FREQuency:CENTer 5 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+# for 8.9 GHz
+Freq = "8.9"
+time.sleep(1)
+SG.write('CF1 8.9 GH')
+sensor.write('SNCFRQ A,8.9GHZ')
+dut.write(':SENSe:FREQuency:CENTer 8.9 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+# for 13 GHz
+Freq = "13"
+time.sleep(1)
+SG.write('CF1 13 GH')
+sensor.write('SNCFRQ A,13GHZ')
+dut.write(':SENSe:FREQuency:CENTer 13 GHZ')
+time.sleep(2)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+outfile.write(str(Freq) + "," + "-20" + "," + sensor.query("CWO 1") + "," + dut.query(':CALC:MARK:Y?') + "\n")
+
+SG.write('RF0')
+dut.write(':POWer:RF:GAIN:STATe 0')
+dut.write(':POWer:RF:ATTenuation 30')
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+
+#결과파일 닫기
+outfile.close()
+
+end_time = time.time()
+print("The Job Took " + str(end_time - start_time) + " seconds.")
