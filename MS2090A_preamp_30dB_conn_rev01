@@ -1,0 +1,126 @@
+import pyvisa
+import time
+import os
+import sys
+from openpyxl import load_workbook
+workbook = load_workbook("./Attenuator/Attenuator.xlsx")
+sheet1 = workbook["Sheet1"]
+
+#시간기록
+start_time = time.time()
+filename = time.time()
+
+#연결된 장비 설정 configuration
+rm = pyvisa.ResourceManager()
+rm.list_resources()
+('GPIB0::13::INSTR')
+('GPIB0::5::INSTR')
+sensor = rm.open_resource('GPIB0::13::INSTR')
+SG = rm.open_resource('GPIB0::5::INSTR')
+sensor.write_termination = '\n'
+sensor.read_termination = '\n'
+SG.write_termination = '\n'
+SG.read_termination = '\n'
+
+print(sensor.query("*IDN?"))
+print(sensor.query("SNTYPE A"))
+print(SG.query("*IDN?"))
+
+#SG preset,
+
+SG.write('RST')
+time.sleep(3)
+#SG output off, PM Ch1 set up,
+SG.write('RF0')
+SG.write('L1 -20 dm')
+sensor.write('CHMODE 1,CW')
+time.sleep(1)
+
+#파일에 cal-kit 정보 입력
+
+sheet1["D4"] = time.strftime('%Y-%m-%d', time.localtime())
+
+
+# for 10 kHz
+SG.write('CF1 0.00001 GH')
+sensor.write('SNCFRQ A,0.0001GHZ')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(1)
+result = sensor.query("CWO 1")
+sheet1["D7"] = float(result)
+pre_result = sheet1['C7'].value
+sheet1["E7"] = float(pre_result) + 50
+
+# for 10 MHz
+SG.write('CF1 0.01 GH')
+sensor.write('SNCFRQ A,0.01GHZ')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(1)
+result = sensor.query("CWO 1")
+sheet1["D8"] = float(result)
+pre_result = sheet1['C8'].value
+sheet1["E8"] = float(pre_result) - float(result)
+
+
+# for 150 MHz
+SG.write('CF1 0.15 GH')
+sensor.write('SNCFRQ A,0.15GHZ')
+SG.write('RF1')
+time.sleep(1)
+sheet1["D9"] = float(result)
+pre_result = sheet1['C9'].value
+sheet1["E9"] = float(pre_result) - float(result)
+
+# for 1 GHz
+SG.write('CF1 1 GH')
+sensor.write('SNCFRQ A,1GHZ')
+SG.write('RF1')
+time.sleep(1)
+sheet1["D10"] = float(result)
+pre_result = sheet1['C10'].value
+sheet1["E10"] = float(pre_result) - float(result)
+
+# for 3 GHz
+SG.write('CF1 3 GH')
+sensor.write('SNCFRQ A,3GHZ')
+SG.write('RF1')
+time.sleep(1)
+sheet1["D11"] = float(result)
+pre_result = sheet1['C11'].value
+sheet1["E11"] = float(pre_result) - float(result)
+
+# for 5 GHz
+SG.write('CF1 5 GH')
+sensor.write('SNCFRQ A,5GHZ')
+SG.write('RF1')
+time.sleep(1)
+sheet1["D12"] = float(result)
+pre_result = sheet1['C12'].value
+sheet1["E12"] = float(pre_result) - float(result)
+
+# for 8.9 GHz
+SG.write('CF1 8.9 GH')
+sensor.write('SNCFRQ A,8.9GHZ')
+SG.write('RF1')
+time.sleep(1)
+sheet1["D13"] = float(result)
+pre_result = sheet1['C13'].value
+sheet1["E13"] = float(pre_result) - float(result)
+
+# for 13 GHz
+SG.write('CF1 13 GH')
+sensor.write('SNCFRQ A,13GHZ')
+SG.write('RF1')
+time.sleep(1)
+sheet1["D14"] = float(result)
+pre_result = sheet1['C14'].value
+sheet1["E14"] = float(pre_result) - float(result)
+
+SG.write('RST')
+SG.write('RF0')
+workbook.save("./Attenuator/Attenuator.xlsx")
+
+end_time = time.time()
+print("The Job Took " + str(end_time - start_time) + " seconds.")
