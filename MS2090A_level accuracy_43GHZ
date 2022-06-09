@@ -1,0 +1,1349 @@
+import pyvisa
+import time
+import os
+import sys
+from openpyxl import load_workbook
+
+workbook = load_workbook("./verification(0743).xlsx")
+sheet1 = workbook["Sheet1"]
+sheet2 = workbook["Sheet2"]
+sheet3 = workbook["Sheet3"]
+sheet4 = workbook["Sheet4"]
+
+# 시간기록
+start_time = time.time()
+filename = time.time()
+
+# 연결된 장비 설정 configuration
+rm = pyvisa.ResourceManager()
+rm.list_resources()
+('GPIB0::13::INSTR')
+('GPIB0::5::INSTR')
+sensor = rm.open_resource('GPIB0::13::INSTR')
+SG = rm.open_resource('GPIB0::5::INSTR')
+dut = rm.open_resource('TCPIP0::192.168.20.99::9001::SOCKET')
+dut.write_termination = '\n'
+dut.read_termination = '\n'
+sensor.write_termination = '\n'
+sensor.read_termination = '\n'
+SG.write_termination = '\n'
+SG.read_termination = '\n'
+
+print(sensor.query("*IDN?"))
+print(sensor.query("SNTYPE A"))
+print(SG.query("*IDN?"))
+print(dut.query('*IDN?'))
+
+# DUT, SG preset,
+dut.write('*RST')
+SG.write('RST')
+time.sleep(3)
+# SG output off, PM Ch1 set up, DUT RBW,VBW Setting
+SG.write('RF0')
+sensor.write('CHMODE 1,CW')
+dut.write(':SENSe:BANDwidth:RESolution 1 KHZ')
+dut.write(':SENSe:BANDwidth:VIDeo 10 HZ')
+dut.write(':SENSe:FREQuency:SPAN 10 KHZ')
+time.sleep(1)
+
+# 파일생성
+folder = str(dut.query('*IDN?')[16:23])
+fol = folder + "/"
+if folder not in os.listdir():
+    os.mkdir(folder)
+
+# 파일에 cal-kit 정보 입력
+sheet1["A1"] = ("Power meter : " + sensor.query("*IDN?"))
+sheet1["A2"] = ("Power sensor : " + sensor.query("SNTYPE A"))
+sheet1["A3"] = ("Signal generator : " + SG.query("*IDN?"))
+sheet1["A4"] = ("DUT : " + dut.query('*IDN?'))
+sheet2["A1"] = ("Power meter : " + sensor.query("*IDN?"))
+sheet2["A2"] = ("Power sensor : " + sensor.query("SNTYPE A"))
+sheet2["A3"] = ("Signal generator : " + SG.query("*IDN?"))
+sheet2["A4"] = ("DUT : " + dut.query('*IDN?'))
+
+# for 0.05GHz
+
+Freq = "0.05"
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+dut.write(':SENSe:FREQuency:CENTer 0.05 GHZ')
+SG.write('CF1 0.05 GH')
+SG.write('L1 6 dm')
+sensor.write('SNCFRQ A,0.05GHZ')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(1)
+
+#0dBm설정하기 위한 Correction value 설정 및 과입력 방지 코드
+s_result = (sensor.query("CWO 1"))
+corr_1 = 6-float(s_result)
+corr_2 = str(corr_1)
+if corr_1 > 15 :
+    SG.write('RF0')
+    sys.exit("종료")
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet1["C7"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D7"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L7"] = float(sensor.query("CWO 1"))
+sheet1["M7"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-4
+corr_1 = 2-float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C8"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D8"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L8"] = float(sensor.query("CWO 1"))
+sheet1["M8"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-8
+corr_1 = -2 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C9"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D9"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L9"] = float(sensor.query("CWO 1"))
+sheet1["M9"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -10
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 0')
+corr_1 = -4 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C10"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D10"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L10"] = float(sensor.query("CWO 1"))
+sheet1["M10"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -14
+corr_1 = -8 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C11"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D11"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L11"] = float(sensor.query("CWO 1"))
+sheet1["M11"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -18
+corr_1 = -12 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C12"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D12"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L12"] = float(sensor.query("CWO 1"))
+sheet1["M12"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -20
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -10')
+corr_1 = -14 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C13"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D13"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L13"] = float(sensor.query("CWO 1"))
+sheet1["M13"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -24
+corr_1 = -18 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C14"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D14"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L14"] = float(sensor.query("CWO 1"))
+sheet1["M14"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -28
+corr_1 = -22 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C15"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D15"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L15"] = float(sensor.query("CWO 1"))
+sheet1["M15"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -30
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -20')
+corr_1 = -24 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(2)
+sheet1["C16"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D16"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L16"] = float(sensor.query("CWO 1"))
+sheet1["M16"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+# for 5GHz
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+dut.write(':SENSe:FREQuency:CENTer 5 GHZ')
+SG.write('CF1 5 GH')
+SG.write('L1 6 dm')
+sensor.write('SNCFRQ A,5GHZ')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(1)
+
+#0dBm설정하기 위한 Correction value 설정 및 과입력 방지 코드
+s_result = (sensor.query("CWO 1"))
+corr_1 = 6-float(s_result)
+corr_2 = str(corr_1)
+if corr_1 > 15 :
+    SG.write('RF0')
+    sys.exit("종료")
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet1["C19"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D19"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L19"] = float(sensor.query("CWO 1"))
+sheet1["M19"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-4
+corr_1 = 2-float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C20"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D20"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L20"] = float(sensor.query("CWO 1"))
+sheet1["M20"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-8
+corr_1 = -2 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C21"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D21"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L21"] = float(sensor.query("CWO 1"))
+sheet1["M21"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -10
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 0')
+corr_1 = -4 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C22"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D22"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L22"] = float(sensor.query("CWO 1"))
+sheet1["M22"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -14
+corr_1 = -8 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C23"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D23"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L23"] = float(sensor.query("CWO 1"))
+sheet1["M23"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -18
+corr_1 = -12 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C24"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D24"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L24"] = float(sensor.query("CWO 1"))
+sheet1["M24"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -20
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -10')
+corr_1 = -14 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C25"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D25"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L25"] = float(sensor.query("CWO 1"))
+sheet1["M25"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -24
+corr_1 = -18 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C26"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D26"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L26"] = float(sensor.query("CWO 1"))
+sheet1["M26"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -28
+corr_1 = -22 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C27"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D27"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L27"] = float(sensor.query("CWO 1"))
+sheet1["M27"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -30
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -20')
+corr_1 = -24 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(2)
+sheet1["C28"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D28"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L28"] = float(sensor.query("CWO 1"))
+sheet1["M28"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+# for 13GHz
+
+Freq = "13"
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+dut.write(':SENSe:FREQuency:CENTer 13 GHZ')
+SG.write('CF1 13 GH')
+SG.write('L1 6 dm')
+sensor.write('SNCFRQ A,13GHZ')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(1)
+
+
+#0dBm설정하기 위한 Correction value 설정 및 과입력 방지 코드
+s_result = (sensor.query("CWO 1"))
+corr_1 = 6-float(s_result)
+corr_2 = str(corr_1)
+if corr_1 > 15 :
+    SG.write('RF0')
+    sys.exit("종료")
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet1["C31"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D31"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L31"] = float(sensor.query("CWO 1"))
+sheet1["M31"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-4
+corr_1 = 2-float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C32"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D32"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L32"] = float(sensor.query("CWO 1"))
+sheet1["M32"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-8
+corr_1 = -2 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C33"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D33"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L33"] = float(sensor.query("CWO 1"))
+sheet1["M33"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -10
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 0')
+corr_1 = -4 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C34"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D34"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L34"] = float(sensor.query("CWO 1"))
+sheet1["M34"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -14
+corr_1 = -8 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C35"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D35"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L35"] = float(sensor.query("CWO 1"))
+sheet1["M35"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -18
+corr_1 = -12 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C36"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D36"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L36"] = float(sensor.query("CWO 1"))
+sheet1["M36"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -20
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -10')
+corr_1 = -14 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C37"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D37"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L37"] = float(sensor.query("CWO 1"))
+sheet1["M37"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -24
+corr_1 = -18 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C38"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D38"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L38"] = float(sensor.query("CWO 1"))
+sheet1["M38"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -28
+corr_1 = -22 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C39"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D39"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L39"] = float(sensor.query("CWO 1"))
+sheet1["M39"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -30
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -20')
+corr_1 = -24 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(2)
+sheet1["C40"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D40"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L40"] = float(sensor.query("CWO 1"))
+sheet1["M40"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+# for 18GHz
+
+Freq = "18"
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+dut.write(':SENSe:FREQuency:CENTer 18 GHZ')
+SG.write('CF1 18 GH')
+SG.write('L1 6 dm')
+sensor.write('SNCFRQ A,18GHZ')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(1)
+
+
+#0dBm설정하기 위한 Correction value 설정 및 과입력 방지 코드
+s_result = (sensor.query("CWO 1"))
+corr_1 = 6-float(s_result)
+corr_2 = str(corr_1)
+if corr_1 > 15 :
+    SG.write('RF0')
+    sys.exit("종료")
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet1["C43"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D43"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L43"] = float(sensor.query("CWO 1"))
+sheet1["M43"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-4
+corr_1 = 2-float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C44"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D44"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L44"] = float(sensor.query("CWO 1"))
+sheet1["M44"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-8
+corr_1 = -2 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C45"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D45"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L45"] = float(sensor.query("CWO 1"))
+sheet1["M45"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -10
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 0')
+corr_1 = -4 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C46"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D46"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L46"] = float(sensor.query("CWO 1"))
+sheet1["M46"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -14
+corr_1 = -8 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C47"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D47"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L47"] = float(sensor.query("CWO 1"))
+sheet1["M47"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -18
+corr_1 = -12 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C48"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D48"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L48"] = float(sensor.query("CWO 1"))
+sheet1["M48"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -20
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -10')
+corr_1 = -14 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C49"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D49"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L49"] = float(sensor.query("CWO 1"))
+sheet1["M49"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -24
+corr_1 = -18 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C50"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D50"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L50"] = float(sensor.query("CWO 1"))
+sheet1["M50"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -28
+corr_1 = -22 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C51"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D51"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L51"] = float(sensor.query("CWO 1"))
+sheet1["M51"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -30
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -20')
+corr_1 = -24 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(2)
+sheet1["C52"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D52"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L52"] = float(sensor.query("CWO 1"))
+sheet1["M52"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+# for 25GHz
+
+Freq = "25"
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+dut.write(':SENSe:FREQuency:CENTer 25 GHZ')
+SG.write('CF1 25 GH')
+SG.write('L1 6 dm')
+sensor.write('SNCFRQ A,25GHZ')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(1)
+
+
+#0dBm설정하기 위한 Correction value 설정 및 과입력 방지 코드
+s_result = (sensor.query("CWO 1"))
+corr_1 = 6-float(s_result)
+corr_2 = str(corr_1)
+if corr_1 > 15 :
+    SG.write('RF0')
+    sys.exit("종료")
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet1["C55"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D55"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L55"] = float(sensor.query("CWO 1"))
+sheet1["M55"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-4
+corr_1 = 2-float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C56"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D56"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L56"] = float(sensor.query("CWO 1"))
+sheet1["M56"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-8
+corr_1 = -2 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C57"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D57"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L57"] = float(sensor.query("CWO 1"))
+sheet1["M57"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -10
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 0')
+corr_1 = -4 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C58"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D58"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L58"] = float(sensor.query("CWO 1"))
+sheet1["M58"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -14
+corr_1 = -8 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C59"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D59"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L59"] = float(sensor.query("CWO 1"))
+sheet1["M59"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -18
+corr_1 = -12 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C60"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D60"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L60"] = float(sensor.query("CWO 1"))
+sheet1["M60"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -20
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -10')
+corr_1 = -14 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C61"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D61"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L61"] = float(sensor.query("CWO 1"))
+sheet1["M61"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -24
+corr_1 = -18 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C62"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D62"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L62"] = float(sensor.query("CWO 1"))
+sheet1["M62"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -28
+corr_1 = -22 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C63"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D63"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L63"] = float(sensor.query("CWO 1"))
+sheet1["M63"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -30
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -20')
+corr_1 = -24 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(2)
+sheet1["C64"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D64"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L64"] = float(sensor.query("CWO 1"))
+sheet1["M64"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+# for 31GHz
+
+Freq = "31"
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+dut.write(':SENSe:FREQuency:CENTer 31 GHZ')
+SG.write('CF1 31 GH')
+SG.write('L1 6 dm')
+sensor.write('SNCFRQ A,31GHZ')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(1)
+
+
+#0dBm설정하기 위한 Correction value 설정 및 과입력 방지 코드
+s_result = (sensor.query("CWO 1"))
+corr_1 = 6-float(s_result)
+corr_2 = str(corr_1)
+if corr_1 > 15 :
+    SG.write('RF0')
+    sys.exit("종료")
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet1["C67"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D67"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L67"] = float(sensor.query("CWO 1"))
+sheet1["M67"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-4
+corr_1 = 2-float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C68"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D68"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L68"] = float(sensor.query("CWO 1"))
+sheet1["M68"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-8
+corr_1 = -2 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C69"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D69"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L69"] = float(sensor.query("CWO 1"))
+sheet1["M69"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -10
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 0')
+corr_1 = -4 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C70"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D70"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L70"] = float(sensor.query("CWO 1"))
+sheet1["M70"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -14
+corr_1 = -8 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C71"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D71"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L71"] = float(sensor.query("CWO 1"))
+sheet1["M71"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -18
+corr_1 = -12 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C72"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D72"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L72"] = float(sensor.query("CWO 1"))
+sheet1["M72"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -20
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -10')
+corr_1 = -14 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C73"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D73"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L73"] = float(sensor.query("CWO 1"))
+sheet1["M73"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -24
+corr_1 = -18 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C74"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D74"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L74"] = float(sensor.query("CWO 1"))
+sheet1["M74"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -28
+corr_1 = -22 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C75"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D75"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L75"] = float(sensor.query("CWO 1"))
+sheet1["M75"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -30
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -20')
+corr_1 = -24 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(2)
+sheet1["C76"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D76"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L76"] = float(sensor.query("CWO 1"))
+sheet1["M76"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+# for 43GHz
+
+Freq = "43"
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+dut.write(':SENSe:FREQuency:CENTer 43 GHZ')
+SG.write('CF1 43 GH')
+SG.write('L1 6 dm')
+sensor.write('SNCFRQ A,43GHZ')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(1)
+
+
+#0dBm설정하기 위한 Correction value 설정 및 과입력 방지 코드
+s_result = (sensor.query("CWO 1"))
+corr_1 = 6-float(s_result)
+corr_2 = str(corr_1)
+if corr_1 > 15 :
+    SG.write('RF0')
+    sys.exit("종료")
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet1["C79"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D79"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L79"] = float(sensor.query("CWO 1"))
+sheet1["M79"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-4
+corr_1 = 2-float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C80"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D80"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L80"] = float(sensor.query("CWO 1"))
+sheet1["M80"] = float(dut.query(':CALC:MARK:Y?'))
+
+#-8
+corr_1 = -2 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C81"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D81"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L81"] = float(sensor.query("CWO 1"))
+sheet1["M81"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -10
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 0')
+corr_1 = -4 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C82"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D82"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L82"] = float(sensor.query("CWO 1"))
+sheet1["M82"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -14
+corr_1 = -8 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C83"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D83"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L83"] = float(sensor.query("CWO 1"))
+sheet1["M83"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -18
+corr_1 = -12 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C84"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D84"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L84"] = float(sensor.query("CWO 1"))
+sheet1["M84"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -20
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -10')
+corr_1 = -14 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C85"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D85"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L85"] = float(sensor.query("CWO 1"))
+sheet1["M85"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -24
+corr_1 = -18 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C86"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D86"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L86"] = float(sensor.query("CWO 1"))
+sheet1["M86"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -28
+corr_1 = -22 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+sheet1["C87"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D87"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L87"] = float(sensor.query("CWO 1"))
+sheet1["M87"] = float(dut.query(':CALC:MARK:Y?'))
+
+# -30
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -20')
+corr_1 = -24 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(2)
+sheet1["C88"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet1["D88"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet1["L88"] = float(sensor.query("CWO 1"))
+sheet1["M88"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+SG.write('CF1 3 GH')
+# for 100 MHz
+
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+SG.write('CF1 0.1 GH')
+sensor.write('SNCFRQ A,0.1GHZ')
+dut.write(':SENSe:FREQuency:CENTer 0.1 GHZ')
+SG.write('L1 6 dm')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(1)
+
+#0dBm설정하기 위한 Correction value 설정 및 과입력 방지 코드
+s_result = (sensor.query("CWO 1"))
+corr_1 = 6-float(s_result)
+corr_2 = str(corr_1)
+if corr_1 > 15 :
+    SG.write('RF0')
+    sys.exit("종료")
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet2["C7"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet2["D7"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet2["L7"] = float(sensor.query("CWO 1"))
+sheet2["M7"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+#1~42GHz 측정
+
+for i in range(42):
+    temfreq = i + 1
+    sg_freq = 'CF1 ' + str(temfreq) + ' GH'
+    sen_freq = 'SNCFRQ A,' + str(temfreq) + 'GHZ'
+    dut_freq = ':SENSe:FREQuency:CENTer ' + str(temfreq) + ' GHZ'
+    cel = temfreq + 7
+    cel_c = 'C' + str(cel)
+    cel_d = 'D' + str(cel)
+    cel_l = 'L' + str(cel)
+    cel_m = 'M' + str(cel)
+
+    dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+    SG.write(sg_freq)
+    sensor.write(sen_freq)
+    dut.write(dut_freq)
+    SG.write('L1 6 dm')
+    time.sleep(1)
+    SG.write('RF1')
+    time.sleep(1)
+
+    #0dBm설정하기 위한 Correction value 설정 및 과입력 방지 코드
+    s_result = (sensor.query("CWO 1"))
+    corr_1 = 6-float(s_result)
+    corr_2 = str(corr_1)
+    if corr_1 > 15 :
+            SG.write('RF0')
+            sys.exit("종료")
+
+    corr_val = 'L1 ' + corr_2 + ' dm'
+    SG.write('RF0')
+    SG.write(corr_val)
+    SG.write('RF1')
+    time.sleep(1)
+    dut.write(':CALC:MARK:MAXimum')
+    time.sleep(1)
+    sheet2[cel_c] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+    sheet2[cel_d] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+    sheet2[cel_l] = float(sensor.query("CWO 1"))
+    sheet2[cel_m] = float(dut.query(':CALC:MARK:Y?'))
+    SG.write('RF0')
+
+
+# for 42.99 GHz
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+SG.write('CF1 42.99 GH')
+sensor.write('SNCFRQ A,42.99GHZ')
+dut.write(':SENSe:FREQuency:CENTer 42.99 GHZ')
+SG.write('L1 6 dm')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(1)
+
+# 0dBm설정하기 위한 Correction value 설정 및 과입력 방지 코드
+s_result = (sensor.query("CWO 1"))
+corr_1 = 6 - float(s_result)
+corr_2 = str(corr_1)
+if corr_1 > 15:
+    SG.write('RF0')
+    sys.exit("종료")
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet2["C50"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet2["D50"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet2["L50"] = float(sensor.query("CWO 1"))
+sheet2["M50"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+# for 1 absoulte verification GHz
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 10')
+SG.write('CF1 1 GH')
+sensor.write('SNCFRQ A,1GHZ')
+dut.write(':SENSe:FREQuency:CENTer 1 GHZ')
+SG.write('L1 6 dm')
+time.sleep(1)
+SG.write('RF1')
+time.sleep(1)
+
+# 0dBm설정하기 위한 Correction value 설정 및 과입력 방지 코드
+s_result = (sensor.query("CWO 1"))
+corr_1 = -4 - float(s_result)
+corr_2 = str(corr_1)
+if corr_1 > 15:
+    SG.write('RF0')
+    sys.exit("종료")
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(1)
+sheet2["C51"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet2["D51"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet2["L51"] = float(sensor.query("CWO 1"))
+sheet2["M51"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV 0')
+corr_1 = -14 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(10)
+sheet2["C52"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet2["D52"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet2["L52"] = float(sensor.query("CWO 1"))
+sheet2["M52"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -10')
+corr_1 = -24 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(10)
+sheet2["C53"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet2["D53"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet2["L53"] = float(sensor.query("CWO 1"))
+sheet2["M53"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -20')
+corr_1 = -34 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(20)
+sheet2["C54"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet2["D54"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet2["L54"] = float(sensor.query("CWO 1"))
+sheet2["M54"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+dut.write('DISP:WIND:TRAC:Y:SCAL:RLEV -20')
+corr_1 = -44 - float(s_result)
+corr_2 = str(corr_1)
+corr_val = 'L1 ' + corr_2 + ' dm'
+SG.write('RF0')
+SG.write(corr_val)
+SG.write('RF1')
+time.sleep(1)
+dut.write(':CALC:MARK:MAXimum')
+time.sleep(40)
+sheet2["C55"] = (dut.query(':POWer:RF:ATTenuation?') + " dB")
+sheet2["D55"] = (dut.query('DISP:WIND:TRAC:Y:SCAL:RLEV?') + " dBm")
+sheet2["L55"] = float(sensor.query("CWO 1"))
+sheet2["M55"] = float(dut.query(':CALC:MARK:Y?'))
+SG.write('RF0')
+
+dut.write('*RST')
+time.sleep(1)
+SG.write('RST')
+SG.write('RF0')
+
+workbook.remove(workbook['Sheet3'])
+workbook.remove(workbook['Sheet4'])
+workbook.save(fol + dut.query('*IDN?')[16:23] + "_level accuracy_43_" + time.strftime('%Y%m%d_%H%M', time.localtime()) + ".xlsx")
+
+end_time = time.time()
+print("The Job Took " + str(end_time - start_time) + " seconds.")
